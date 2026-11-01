@@ -1459,12 +1459,31 @@ always @(posedge CLK_AUDIO) begin
 	if(old_d0 == old_d1) {dsnd_al, dsnd_ar} <= old_d1;
 end
 
+// HDD seek clicks (synthesised 2.5" drive), clk_sys -> CLK_AUDIO
+wire [15:0] hddc_smp;
+hdd_clicks hdd_clicks
+(
+	.clk      (clk_sys),
+	.reset    (reset),
+	.activity (ide_fast ? ide_f_led : ide_c_led),
+	.sample   (hddc_smp)
+);
+
+reg [15:0] hddc_a;
+always @(posedge CLK_AUDIO) begin
+	reg [15:0] old_h0, old_h1;
+
+	old_h0 <= hddc_smp;
+	old_h1 <= old_h0;
+	if(old_h0 == old_h1) hddc_a <= old_h1;
+end
+
 reg [15:0] out_l, out_r;
 always @(posedge CLK_AUDIO) begin
 	reg [17:0] tmp_l, tmp_r;
 
-	tmp_l <= {{2{aud_l[15]}},aud_l} + {{2{toccata_aud_left[15]}},toccata_aud_left} + (mt32_mute ? 18'd0 : {{2{mt32_i2s_l[15]}},mt32_i2s_l}) + {{2{cdda_sl[15]}}, cdda_sl} + {{2{dsnd_al[15]}}, dsnd_al};
-	tmp_r <= {{2{aud_r[15]}},aud_r} + {{2{toccata_aud_right[15]}},toccata_aud_right} + (mt32_mute ? 18'd0 : {{2{mt32_i2s_r[15]}},mt32_i2s_r}) + {{2{cdda_sr[15]}}, cdda_sr} + {{2{dsnd_ar[15]}}, dsnd_ar};
+	tmp_l <= {{2{aud_l[15]}},aud_l} + {{2{toccata_aud_left[15]}},toccata_aud_left} + (mt32_mute ? 18'd0 : {{2{mt32_i2s_l[15]}},mt32_i2s_l}) + {{2{cdda_sl[15]}}, cdda_sl} + {{2{dsnd_al[15]}}, dsnd_al} + {{2{hddc_a[15]}}, hddc_a};
+	tmp_r <= {{2{aud_r[15]}},aud_r} + {{2{toccata_aud_right[15]}},toccata_aud_right} + (mt32_mute ? 18'd0 : {{2{mt32_i2s_r[15]}},mt32_i2s_r}) + {{2{cdda_sr[15]}}, cdda_sr} + {{2{dsnd_ar[15]}}, dsnd_ar} + {{2{hddc_a[15]}}, hddc_a};
 
 	// clamp the output
 	out_l <= (tmp_l[17:15] == 3'b000 || tmp_l[17:15] == 3'b111) ? tmp_l[15:0] : {tmp_l[17], {15{~tmp_l[17]}}};
