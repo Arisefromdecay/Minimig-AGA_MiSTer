@@ -70,6 +70,8 @@ wire  [7:0] uart_mode;
 
 reg [2:0] mister_floppy_status;
 
+wire kbd_hdd_led_on; // HDD activity -> USB keyboard Scroll Lock LED
+
 hps_io #(.CONF_STR(CONF_STR), .CONF_STR_BRAM(0)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -96,6 +98,10 @@ hps_io #(.CONF_STR(CONF_STR), .CONF_STR_BRAM(0)) hps_io
 
 	.RTC(RTC),
 	.gamma_bus(gamma_bus),
+
+	// keyboard LEDs: core takes over Scroll Lock only ([2]); Caps/Num stay normal
+	.ps2_kbd_led_use(3'b100),
+	.ps2_kbd_led_status({kbd_hdd_led_on, 2'b00}),
 
 	.EXT_BUS(EXT_BUS)
 );
@@ -1468,5 +1474,14 @@ end
 assign AUDIO_S = 1;
 assign AUDIO_L = out_l;
 assign AUDIO_R = out_r;
+
+// HDD activity on the USB keyboard's Scroll Lock LED
+kbd_hdd_led kbd_hdd_led
+(
+	.clk      (clk_sys),
+	.reset    (reset),
+	.activity (ide_fast ? ide_f_led : ide_c_led),
+	.led      (kbd_hdd_led_on)
+);
 
 endmodule

@@ -1,0 +1,36 @@
+name: Build core
+
+on:
+  push:
+    branches: [kbd-hdd-led]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space for the Quartus image
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Compile with Quartus Prime Lite 17.0
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/build" -w /build \
+            raetro/quartus:17.0 \
+            quartus_sh --flow compile Minimig.qpf
+
+      - name: Name the bitstream
+        run: |
+          ls -la output_files
+          cp output_files/Minimig.rbf "Minimig_kbdled_$(date +%Y%m%d).rbf"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Minimig_kbdled
+          path: Minimig_kbdled_*.rbf
+          if-no-files-found: error
