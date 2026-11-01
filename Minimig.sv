@@ -71,7 +71,7 @@ wire  [7:0] uart_mode;
 reg [2:0] mister_floppy_status;
 
 wire kbd_hdd_led_on; // HDD activity    -> USB keyboard Scroll Lock LED
-wire kbd_fdd_led_on; // floppy activity -> USB keyboard Caps Lock LED
+wire kbd_fdd_led_on; // floppy activity -> USB keyboard Num Lock LED
 
 hps_io #(.CONF_STR(CONF_STR), .CONF_STR_BRAM(0)) hps_io
 (
@@ -100,9 +100,9 @@ hps_io #(.CONF_STR(CONF_STR), .CONF_STR_BRAM(0)) hps_io
 	.RTC(RTC),
 	.gamma_bus(gamma_bus),
 
-	// keyboard LEDs: [2] Scroll Lock = HDD, [0] Caps Lock = floppy; Num Lock stays normal
-	.ps2_kbd_led_use(3'b101),
-	.ps2_kbd_led_status({kbd_hdd_led_on, 1'b0, kbd_fdd_led_on}),
+	// keyboard LEDs: [2] Scroll Lock = HDD, [1] Num Lock = floppy; Caps Lock stays normal
+	.ps2_kbd_led_use(3'b110),
+	.ps2_kbd_led_status({kbd_hdd_led_on, kbd_fdd_led_on, 1'b0}),
 
 	.EXT_BUS(EXT_BUS)
 );
@@ -1505,7 +1505,7 @@ kbd_hdd_led kbd_hdd_led
 	.led      (kbd_hdd_led_on)
 );
 
-// floppy disk DMA on the USB keyboard's Caps Lock LED
+// floppy disk DMA on the USB keyboard's Num Lock LED
 kbd_hdd_led kbd_fdd_led
 (
 	.clk      (clk_sys),
