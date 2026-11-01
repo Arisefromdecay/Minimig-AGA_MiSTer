@@ -9,17 +9,18 @@
 // "chatter" train of 4-11 softer ticks 3-7 ms apart, then waits 20-105 ms.
 // Timing, pitch and strength are randomised from the LFSR.
 //
+// Loudness follows the core's drive sound volume setting (0 = off).
 // Output is a signed 16-bit mono sample at 48 kHz (held between samples).
 
 module hdd_clicks
 #(
-	parameter CLK_HZ    = 28_375_160,
-	parameter VOL_SHIFT = 1           // higher = quieter (each step -6 dB)
+	parameter CLK_HZ    = 28_375_160
 )
 (
 	input                    clk,
 	input                    reset,
 	input                    activity,
+	input              [1:0] volume,  // OSD drive sound volume: 0 = off, 1..3 = -6 dB steps
 	output reg signed [15:0] sample = 0
 );
 
@@ -54,7 +55,7 @@ always @(posedge clk) begin
 	else if (act_s[1])    hold <= 12'd2400;
 	else if (ce && |hold) hold <= hold - 1'd1;
 end
-wire busy = act_s[1] | (|hold);
+wire busy = (act_s[1] | (|hold)) & (|volume);
 
 // ---------------------------------------------------------------- scheduler
 reg [12:0] wait_cnt = 0;
@@ -124,6 +125,7 @@ wire signed [17:0] p_x  = pend ? $signed({2'b00, amp, 4'b0}) - $signed({6'b0, am
 wire signed [17:0] b_x  = pend ? $signed({8'b0, amp, 2'b0}) + $signed({10'b0, amp} >> 1)  : 18'sd0; // ~4.5*A
 wire signed [17:0] p_n  = (p_fb >>> 14) + p_x;
 wire signed [17:0] b_n  = (b_fb >>> 14) + b_x;
+wire signed [19:0] lp_v = lp >>> (2'd3 - volume);
 wire signed [25:0] n_mul = noise * $signed({1'b0, nenv});
 
 always @(posedge clk) begin
@@ -138,8 +140,10 @@ always @(posedge clk) begin
 		mix <= (n_mul >>> 7) + p1 + b1;
 		lp  <= lp + (((mix - lp) * 9) >>> 4);
 
-		sample <= ((lp >>> VOL_SHIFT) > 20'sd32767)  ? 16'sh7FFF :
-		          ((lp >>> VOL_SHIFT) < -20'sd32768) ? 16'sh8000 : lp >>> VOL_SHIFT;
+		// volume 3: lp, 2: lp/2 (about -10 dBFS peak), 1: lp/4, 0: silent
+		sample <= ~|volume         ? 16'sd0 :
+		          (lp_v >  20'sd32767) ? 16'sh7FFF :
+		          (lp_v < -20'sd32768) ? 16'sh8000 : lp_v[15:0];
 	end
 end
 
